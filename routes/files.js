@@ -1,77 +1,83 @@
 const router = require('express').Router();
 const multer = require('multer');
 const path = require('path');
-const File = require('../models/file');
 const { v4: uuidv4 } = require('uuid');
+const File = require('../models/file');
+const MailService = require('../services/mailService');
+const megaClient = require('../services/megaStorageService');
 
-let storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/') ,
-    filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-              cb(null, uniqueName)
-    } ,
-});
+let upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB file size limit
+  },
+}).single('myfile');
 
-let upload = multer({ storage, limits:{ fileSize: 1000000 * 100 }, }).single('myfile'); //100mb
+router.post('/', upload, async (req, res) => {
+  const APP_BASE_URL = req.headers.origin;
+  const uuid = uuidv4();
+  const megaOpts = {
+    name: uuid + "." + req.file.originalname.split(".").pop(),
+    attributes: { type: req.file.mimetype }
+  };
 
-router.post('/', (req, res) => {
-  const APP_BASE_URL = process.env.APP_BASE_URL || req.protocol + "://" + req.get('host');
-    upload(req, res, async (err) => {
-      if (err) {
-        return res.status(500).send({ error: err.message });
-      }
-        const file = new File({
-            filename: req.file.filename,
-            uuid: uuidv4(),
-            path: req.file.path,
-            size: req.file.size
-        });
-        const response = await file.save();
-        res.json({ file: `${APP_BASE_URL}/files/${response.uuid}` });
+  megaClient.upload(megaOpts, req.file.buffer, async (err, uploadedFile) => {
+    if (err) {
+      res.status(500).send({ error: err.message });
+    } else {
+      const file = new File({
+        cloudFilename: uploadedFile.name,
+        originalFilename: req.file.originalname,
+        type: req.file.mimetype,
+        uuid: uuid,
+        path: await uploadedFile.link(),
+        size: req.file.size
       });
+      const response = await file.save();
+      res.json({ file: new URL(`${APP_BASE_URL}/files/${uuid}`) });
+    }
+  });
 });
 
 router.post('/send', async (req, res) => {
   const { uuid, emailTo, emailFrom, expiresIn } = req.body;
-  if(!uuid || !emailTo || !emailFrom) {
-      return res.status(422).send({ error: 'All fields are required except expiry.'});
+  if (!uuid || !emailTo || !emailFrom) {
+    return res.status(422).send({ error: 'All fields are required except expiry.' });
   }
   // Get data from db 
   try {
-    const APP_BASE_URL = process.env.APP_BASE_URL || req.protocol + "://" + req.get('host');
-    
-    const file = await File.findOne({ uuid: uuid });
-    if(file.sent) {
-      return res.status(422).send({ error: 'Email already sent once.'});
-    }
-    file.sender = emailFrom;
-    file.receiver = emailTo;
-    const response = await file.save();
-    // send mail
-    const sendMail = require('../services/mailService');
-    sendMail({
-      from: emailFrom,
-      to: emailTo,
-      subject: 'sharingBox file sharing',
-      text: `${emailFrom} shared a file with you.`,
-      html: require('../services/emailTemplate')({
-                emailFrom, 
-                downloadLink: `${APP_BASE_URL}/files/${file.uuid}?source=email` ,
-                size: parseInt(file.size/1000) + ' KB',
-                expires: '24 hours',
-                appBaseUrl: APP_BASE_URL
-            })
-    }).then(() => {
-      file.sent = true;
-      return res.json({success: true});
-    }).catch(err => {
-      file.sent = false;
-      return res.status(500).json({error: 'Error in email sending.'});
-    });
-} catch(err) {
-  return res.status(500).send({ error: 'Something went wrong.'});
-}
+    const APP_BASE_URL = req.headers.origin;
 
+    const file = await File.findOne({ uuid: uuid });
+    if (file.sent) {
+      return res.status(422).send({ error: 'Email already sent once.' });
+    }
+
+    // send mail
+    const sendMail = await MailService();
+    if (sendMail) {
+      await sendMail({
+        from: emailFrom,
+        to: emailTo,
+        subject: 'sharingBox file sharing',
+        text: `${emailFrom} shared a file with you.`,
+        html: require('../services/emailTemplate')({
+          emailFrom,
+          downloadLink: `${APP_BASE_URL}/files/${file.uuid}?source=email`,
+          size: parseInt(file.size / 1000) + ' KB',
+          expires: '24 hours',
+          appBaseUrl: APP_BASE_URL
+        })
+      });
+
+      await file.updateOne({ sent: true, sender: emailFrom, receiver: emailTo });
+      return res.json({ success: true });
+    } else {
+      return res.status(500).send({ error: 'Something went wrong.' });
+    }
+  } catch (err) {
+    return res.status(500).send({ error: 'Something went wrong.' });
+  }
 });
 
 module.exports = router;

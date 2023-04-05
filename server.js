@@ -1,7 +1,7 @@
-require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+// require('dotenv').config({path: path.join(__dirname, '.env.local')});
 const connectDB = require('./config/db');
 
 const PORT = process.env.PORT || 3000;

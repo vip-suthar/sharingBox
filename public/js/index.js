@@ -18,7 +18,7 @@ const toast = document.querySelector(".toast");
 const uploadURL = `./api/files/`;
 const emailURL = `./api/files/send/`;
 
-const maxAllowedSize = 100 * 1024 * 1024; //100mb
+const maxAllowedSize = 10 * 1024 * 1024; //10mb
 
 
 browseBtn.addEventListener("click", () => {
@@ -58,7 +58,7 @@ dropZone.addEventListener("dragleave", (e) => {
 // file input change and uploader
 fileInput.addEventListener("change", () => {
   if (fileInput.files[0].size > maxAllowedSize) {
-    showToast("Max file size is 100MB");
+    showToast("Max file size is 10MB");
     fileInput.value = ""; // reset the input
     return;
   }

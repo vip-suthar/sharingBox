@@ -16,14 +16,14 @@ router.get('/:uuid', async (req, res) => {
 
 
     try {
-        const APP_BASE_URL = process.env.APP_BASE_URL || req.protocol + "://" + req.get('host');
-        
+        // const APP_BASE_URL = req.headers.origin;
+        // console.log("here",req.headers)
         const file = await File.findOne({ uuid: req.params.uuid });
         // Link expired
         if (!file) {
             return res.render('download', { error: 'Link has been expired.' });
         }
-        return res.render('download', { uuid: file.uuid, fileName: file.filename, fileSize: file.size, downloadLink: `${APP_BASE_URL}/files/download/${file.uuid}` });
+        return res.render('download', { uuid: file.uuid, fileName: file.originalFilename, fileSize: file.size, downloadLink: `/files/download/${file.uuid}` });
     } catch (err) {
         return res.render('download', { error: 'Something went wrong.' });
     }
