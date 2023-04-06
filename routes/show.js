@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const File = require('../models/file');
 const runScript = require('../services/runDisposingService');
+const DBService = require('../services/dbService');
 
 router.get('/:uuid', async (req, res) => {
 
@@ -16,6 +17,13 @@ router.get('/:uuid', async (req, res) => {
 
 
     try {
+
+        const db = await DBService();
+
+        if (!db) {
+            return res.status(500).json({ error: "Server Error; Please Try again later" });
+        }
+
         // const APP_BASE_URL = req.headers.origin;
         // console.log("here",req.headers)
         const file = await File.findOne({ uuid: req.params.uuid });

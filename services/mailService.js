@@ -1,8 +1,8 @@
 const nodemailer = require("nodemailer");
 
-let transporterCached = null;
+let transporterInstance = null;
 module.exports = () => {
-    if(transporterCached) return transporterCached;
+    if(transporterInstance) return transporterInstance;
 
     let transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
@@ -15,7 +15,8 @@ module.exports = () => {
     });
 
     return transporter.verify().then(() => {
-        transporterCached = transporter;
+        console.log("Email Service Ready");
+        transporterInstance = transporter;
         return async ({ from, to, subject, text, html }) => {
             // send mail with defined transport object
             return await transporter.sendMail({
@@ -28,6 +29,6 @@ module.exports = () => {
         }
     }).catch((err) => {
         console.error("Mail Server Error: " + err.message);
-        return transporterCached = null;
+        return transporterInstance = null;
     });
 }
