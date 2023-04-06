@@ -7,7 +7,7 @@ router.get('/:uuid', async (req, res) => {
 
     // Now we can run a script and invoke a callback when complete, e.g.
     try {
-        runScript('./services/dbOldDataDisposeService.js', function (err) {
+        runScript('./dbOldDataDisposeService.js', function (err) {
             if (err) throw err;
             console.log('finished running dbOldDataDisposeService.js');
         });

@@ -26,7 +26,6 @@ async function fetchData() {
         console.log("Error While deleting Old Data");
         return;
     }
-
 }
 
 fetchData().then(process.exit);
