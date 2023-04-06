@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const path = require('path');
 const File = require('../models/file');
 const runScript = require('../services/runDisposingService');
 const DBService = require('../services/dbService');
@@ -7,7 +8,7 @@ router.get('/:uuid', async (req, res) => {
 
     // Now we can run a script and invoke a callback when complete, e.g.
     try {
-        runScript('./dbOldDataDisposeService.js', function (err) {
+        runScript(path.join(__dirname, '../services/dbOldDataDisposeService.js'), function (err) {
             if (err) throw err;
             console.log('finished running dbOldDataDisposeService.js');
         });
